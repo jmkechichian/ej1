@@ -1,0 +1,20 @@
+# Levanta WildFly en un contenedor con ej1.ear ya desplegado.
+#
+#   1) mvn clean install          (genera ear/target/ej1.ear)
+#   2) docker compose up --build  (construye la imagen y arranca el servidor)
+#
+# App:            http://localhost:8080/ej1-web/trabajadores
+# Consola admin:  http://localhost:9990   (usuario de management: hay que crearlo aparte)
+# ej1-console:    funciona igual, apunta a remote+http://localhost:8080 (prueba/prueba)
+#
+# OJO: si tu WildFly standalone esta corriendo, usa los mismos puertos 8080/9990.
+#      Apagalo antes, o cambia el mapeo de abajo a "8081:8080".
+
+services:
+  wildfly:
+    build: .
+    image: ej1-wildfly:latest
+    container_name: ej1-wildfly
+    ports:
+      - "8080:8080"
+      - "9990:9990"

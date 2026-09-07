@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:a="jakarta.faces.passthrough">
+
+<h:head>
+    <title>Gestion de Trabajadores de Salud (JSF)</title>
+    <meta charset="UTF-8"/>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+        h1 { color: #333; }
+        h2 { color: #444; margin-top: 0; }
+        .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 8px; }
+        label { font-weight: bold; }
+        .grid td { padding: 6px 10px; }
+        input[type=text], input[type=number], input[type=date] { padding: 8px; width: 280px; }
+        button { margin-top: 12px; padding: 10px 18px; cursor: pointer; }
+        table.datos { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.datos th, table.datos td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        table.datos th { background: #eee; }
+        .ok  { color: #1a7f37; font-weight: bold; }
+        .err { color: #b00020; font-weight: bold; }
+        .si  { color: green; font-weight: bold; }
+        .no  { color: red; font-weight: bold; }
+    </style>
+</h:head>
+
+<h:body>
+
+    <h1>Gestion de Trabajadores de Salud</h1>
+
+    <!-- Mensajes (info / error de la regla de negocio + validaciones), refrescados por AJAX -->
+    <h:messages id="msgs" showDetail="true"
+                infoClass="ok" errorClass="err" />
+
+    <!-- ============================ ALTA ============================ -->
+    <div class="card">
+        <h2>Agregar trabajador</h2>
+
+        <h:form id="formAlta">
+            <!-- El ID no se ingresa: lo genera la capa de datos (autoincremental). -->
+            <table class="grid">
+                <tr>
+                    <td><h:outputLabel for="nombre" value="Nombre:" /></td>
+                    <td><h:inputText id="nombre" value="#{trabajadorSaludBean.nombre}" required="true" /></td>
+                </tr>
+                <tr>
+                    <td><h:outputLabel for="apellido" value="Apellido:" /></td>
+                    <td><h:inputText id="apellido" value="#{trabajadorSaludBean.apellido}" required="true" /></td>
+                </tr>
+                <tr>
+                    <td><h:outputLabel for="esp" value="Especialidad:" /></td>
+                    <td><h:inputText id="esp" value="#{trabajadorSaludBean.especialidad}" required="true" /></td>
+                </tr>
+                <tr>
+                    <td><h:outputLabel for="mat" value="Matricula:" /></td>
+                    <td><h:inputText id="mat" value="#{trabajadorSaludBean.matricula}" required="true" /></td>
+                </tr>
+                <tr>
+                    <td><h:outputLabel for="fecha" value="Fecha de ingreso:" /></td>
+                    <td>
+                        <h:inputText id="fecha" a:type="date" value="#{trabajadorSaludBean.fechaIngreso}">
+                            <f:convertDateTime type="localDate" pattern="yyyy-MM-dd" />
+                        </h:inputText>
+                    </td>
+                </tr>
+                <tr>
+                    <td><h:outputLabel for="activo" value="Activo:" /></td>
+                    <td><h:selectBooleanCheckbox id="activo" value="#{trabajadorSaludBean.activo}" /></td>
+                </tr>
+            </table>
+
+            <!-- AJAX: envia el formulario y refresca sin recargar la pagina -->
+            <h:commandButton value="Agregar trabajador" action="#{trabajadorSaludBean.agregar}">
+                <f:ajax execute="@form" render="@form :msgs :resultado" />
+            </h:commandButton>
+        </h:form>
+    </div>
+
+    <!-- ========================== BUSQUEDA ========================= -->
+    <div class="card">
+        <h2>Buscar por matricula</h2>
+
+        <h:form id="formBuscar">
+            <h:outputLabel for="q" value="Matricula: " />
+            <h:inputText id="q" value="#{trabajadorSaludBean.matriculaBuscar}">
+                <!-- AJAX en vivo: filtra mientras se escribe (con retardo de 300 ms) -->
+                <f:ajax event="keyup" delay="300"
+                        listener="#{trabajadorSaludBean.buscar}" render=":resultado" />
+            </h:inputText>
+
+            <h:commandButton value="Buscar" action="#{trabajadorSaludBean.buscar}">
+                <f:ajax execute="@form" render=":resultado" />
+            </h:commandButton>
+
+            <h:commandButton value="Mostrar todos" action="#{trabajadorSaludBean.listarTodos}">
+                <f:ajax execute="@form" render="@form :resultado" />
+            </h:commandButton>
+        </h:form>
+    </div>
+
+    <!-- ========================== LISTADO ========================== -->
+    <div class="card">
+        <h2>Trabajadores registrados</h2>
+
+        <h:panelGroup id="resultado" layout="block">
+
+            <h:dataTable value="#{trabajadorSaludBean.trabajadores}" var="t"
+                         styleClass="datos"
+                         rendered="#{not empty trabajadorSaludBean.trabajadores}">
+                <h:column><f:facet name="header">ID</f:facet>#{t.id}</h:column>
+                <h:column><f:facet name="header">Nombre</f:facet>#{t.nombre}</h:column>
+                <h:column><f:facet name="header">Apellido</f:facet>#{t.apellido}</h:column>
+                <h:column><f:facet name="header">Especialidad</f:facet>#{t.especialidad}</h:column>
+                <h:column><f:facet name="header">Matricula</f:facet>#{t.matricula}</h:column>
+                <h:column><f:facet name="header">Fecha de ingreso</f:facet>#{t.fechaIngreso}</h:column>
+                <h:column>
+                    <f:facet name="header">Activo</f:facet>
+                    <h:outputText value="Si" styleClass="si" rendered="#{t.activo}" />
+                    <h:outputText value="No" styleClass="no" rendered="#{not t.activo}" />
+                </h:column>
+            </h:dataTable>
+
+            <h:outputText value="No hay trabajadores para mostrar."
+                          rendered="#{empty trabajadorSaludBean.trabajadores}" />
+        </h:panelGroup>
+    </div>
+
+</h:body>
+</html>

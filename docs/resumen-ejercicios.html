@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Resumen de Ejercicios &mdash; Jakarta EE</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.5; color: #1a1a1a; margin: 0;
+  }
+  h1, h2, h3, h4 { color: #0b3d5c; line-height: 1.25; margin: 1.2em 0 .4em; }
+  h1 { font-size: 22pt; border-bottom: 3px solid #0b3d5c; padding-bottom: .2em; }
+  h2 { font-size: 15pt; border-bottom: 1px solid #b9c9d3; padding-bottom: .15em; margin-top: 1.6em; }
+  h3 { font-size: 12pt; color: #12557a; }
+  h4 { font-size: 10.5pt; color: #333; margin-bottom: .2em; }
+  p { margin: .5em 0; }
+  code { font-family: "Consolas", "Courier New", monospace; font-size: 9pt;
+    background: #eef2f5; padding: 1px 4px; border-radius: 3px; }
+  pre {
+    font-family: "Consolas", "Courier New", monospace; font-size: 8.4pt;
+    background: #f6f8fa; border: 1px solid #d7dee3; border-left: 3px solid #0b3d5c;
+    border-radius: 4px; padding: 10px 12px; overflow-x: auto; line-height: 1.4;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: .8em 0; font-size: 9.2pt; }
+  th, td { border: 1px solid #c4d0d8; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #e7eef2; color: #0b3d5c; }
+  .tag { display: inline-block; background: #0b3d5c; color: #fff; font-size: 8pt;
+    padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+  .ok { color: #1a7f37; font-weight: bold; }
+  .bad { color: #b00020; font-weight: bold; }
+  .note { background: #fff8e1; border: 1px solid #f0d98c; border-radius: 4px;
+    padding: 8px 12px; margin: .8em 0; font-size: 9.6pt; }
+  .files { font-size: 9pt; color: #555; }
+  ul, ol { margin: .4em 0 .6em; padding-left: 1.4em; }
+  li { margin: .2em 0; }
+  .pb { page-break-before: always; }
+  .cover { text-align: center; padding-top: 60mm; }
+  .cover h1 { border: none; font-size: 28pt; }
+  .cover .sub { font-size: 13pt; color: #555; margin-top: .3em; }
+  .cover .meta { margin-top: 40mm; font-size: 11pt; color: #333; }
+  .toc li { margin: .35em 0; }
+  a { color: #12557a; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Aplicaciones Jakarta EE</h1>
+  <div class="sub">Resumen de soluciones y explicaci&oacute;n del c&oacute;digo</div>
+  <div class="meta">
+    Ejercicios 1, 1.2, 2 y 4<br>
+    Entidad gestionada: <strong>TrabajadorSalud</strong><br>
+    Proyecto Maven multi-m&oacute;dulo: <code>tse2026:ej1</code><br>
+    Servidor: WildFly 41.0.0.Final &nbsp;&bull;&nbsp; Jakarta EE 11
+  </div>
+</div>
+
+<div class="pb"></div>
+<h2>&Iacute;ndice</h2>
+<ol class="toc">
+  <li>Arquitectura general del proyecto</li>
+  <li>Ejercicio 1 &mdash; Aplicaciones Jakarta EE y Session Beans
+    <ul>
+      <li>1.1 La entidad <code>TrabajadorSalud</code></li>
+      <li>1.2 Capa de Acceso a Datos &mdash; Singleton Session Bean</li>
+      <li>1.3 Capa de Negocio &mdash; Stateless Session Bean</li>
+      <li>1.4 Capa de Presentaci&oacute;n Web &mdash; Servlet + JSP</li>
+      <li>1.5 Capa de Presentaci&oacute;n &mdash; Aplicaci&oacute;n de consola</li>
+      <li>1.6 Errores detectados y corregidos</li>
+      <li>1.7 Prueba unitaria sin contenedor</li>
+    </ul>
+  </li>
+  <li>Ejercicio 1.2 &mdash; Despliegue en WildFly local con Docker</li>
+  <li>Ejercicio 2 &mdash; Despliegue en la Nube (PaaS / OpenShift)</li>
+  <li>Ejercicio 4 &mdash; Capa de presentaci&oacute;n con JSF y AJAX</li>
+  <li>C&oacute;mo ejecutar todo</li>
+</ol>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>1. Arquitectura general del proyecto</h1>
+
+<p>La soluci&oacute;n es un proyecto <strong>Maven multi-m&oacute;dulo</strong> que separa las tres
+capas cl&aacute;sicas de una aplicaci&oacute;n empresarial y empaqueta todo en un
+<strong>EAR</strong> desplegable en WildFly.</p>
+
+<table>
+  <tr><th>M&oacute;dulo</th><th>Empaque</th><th>Capa / rol</th></tr>
+  <tr><td><code>ej1-api</code></td><td>jar</td><td>Interfaz remota de negocio (contrato compartido con el cliente Java)</td></tr>
+  <tr><td><code>ejb</code></td><td>ejb</td><td>Capa de Negocio (Stateless) + Capa de Datos (Singleton) + entidad</td></tr>
+  <tr><td><code>web</code></td><td>war</td><td>Capa de Presentaci&oacute;n Web: Servlet+JSP <em>y</em> JSF (Ej. 4)</td></tr>
+  <tr><td><code>ear</code></td><td>ear</td><td>Empaqueta <code>ejb</code> + <code>web</code>; incluye <code>ej1-api.jar</code> en <code>lib/</code></td></tr>
+  <tr><td><code>ej1-console</code></td><td>jar</td><td>Capa de Presentaci&oacute;n como aplicaci&oacute;n Java de consola (EJB remoto)</td></tr>
+</table>
+
+<h4>Flujo de una petici&oacute;n</h4>
+<pre><code>Navegador / Consola
+      &darr;
+Capa Presentaci&oacute;n   (Servlet+JSP | JSF | app consola)
+      &darr;  interfaz LOCAL (web)  /  interfaz REMOTA (consola)
+Capa Negocio        @Stateless TrabajadorSaludService   &larr; valida la regla de negocio
+      &darr;  interfaz LOCAL
+Capa Datos          @Singleton TrabajadorSaludDAO       &larr; almacena (List en memoria)</code></pre>
+
+<div class="note"><strong>Nota sobre la persistencia:</strong> en este primer prototipo la
+capa de datos guarda los registros en una <code>List</code> en memoria dentro del Singleton.
+No se usa base de datos todav&iacute;a (el <code>persistence.xml</code> queda inerte porque la
+entidad es un POJO, no una <code>@Entity</code> JPA). Al reiniciarse el servidor la lista se vac&iacute;a.</div>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>2. Ejercicio 1 &mdash; Aplicaciones Jakarta EE y Session Beans</h1>
+
+<p>Se pide una aplicaci&oacute;n Jakarta EE de tres capas para gestionar una entidad, con:
+capa de presentaci&oacute;n <strong>web (Servlet/JSP)</strong> <em>y</em> <strong>Java de consola</strong>;
+capa de negocio con <strong>Stateless Session Beans</strong> (interfaces local y remota) que
+controlen <strong>al menos una regla de negocio</strong> al dar de alta; y capa de datos con un
+<strong>Singleton Session Bean</strong> (interfaces local y remota).</p>
+
+<h2>2.1 La entidad <code>TrabajadorSalud</code></h2>
+<p class="files">ejb/src/main/java/tse2026/ej1/entidad/TrabajadorSalud.java</p>
+
+<p>Representa a un trabajador de la salud. Cumple la consigna de tener <strong>al menos tres
+atributos de tipos distintos</strong>: texto (<code>String</code>), num&eacute;rico (<code>Long</code>),
+fecha (<code>LocalDate</code>) y booleano (<code>Boolean</code>).</p>
+
+<pre><code>public class TrabajadorSalud implements Serializable {
+    private Long id;              // num&eacute;rico
+    private String nombre;        // texto
+    private String apellido;
+    private String especialidad;
+    private String matricula;     // texto &mdash; clave de negocio
+    private LocalDate fechaIngreso; // fecha
+    private Boolean activo;       // booleano
+    // constructor vac&iacute;o + constructor completo + getters/setters + toString()
+}</code></pre>
+
+<p><strong>Por qu&eacute; <code>implements Serializable</code>:</strong> las instancias viajan por la
+interfaz remota (consola) y se guardan en beans JSF de vista, dos escenarios que exigen que el
+objeto sea serializable.</p>
+
+<h2>2.2 Capa de Acceso a Datos &mdash; Singleton Session Bean</h2>
+<p class="files">ejb/src/main/java/tse2026/ej1/datos/TrabajadorSaludDAO.java (+ <code>...DAOLocal</code>, <code>...DAORemote</code>)</p>
+
+<h4>Interfaz local</h4>
+<pre><code>@Local
+public interface TrabajadorSaludDAOLocal {
+    void agregar(TrabajadorSalud trabajador);
+    List&lt;TrabajadorSalud&gt; obtenerTodos();
+    TrabajadorSalud buscarPorMatricula(String matricula);
+}</code></pre>
+
+<h4>Interfaz remota</h4>
+<pre><code>@Remote
+public interface TrabajadorSaludDAORemote {
+    void agregar(Long id, String nombre, String apellido, String especialidad,
+                 String matricula, String fechaIngreso, Boolean activo);
+    String listar();
+    String buscarRemotoPorMatricula(String matricula);
+}</code></pre>
+
+<p>La interfaz remota trabaja con <strong>tipos simples y devuelve texto</strong> para que un
+cliente remoto no dependa de la clase entidad.</p>
+
+<h4>Implementaci&oacute;n</h4>
+<pre><code>@Singleton
+public class TrabajadorSaludDAO
+        implements TrabajadorSaludDAOLocal, TrabajadorSaludDAORemote {
+
+    private List&lt;TrabajadorSalud&gt; trabajadores = new ArrayList&lt;&gt;();
+
+    @Override public void agregar(TrabajadorSalud t) { trabajadores.add(t); }
+
+    @Override public List&lt;TrabajadorSalud&gt; obtenerTodos() { return trabajadores; }
+
+    @Override public TrabajadorSalud buscarPorMatricula(String matricula) {
+        for (TrabajadorSalud t : trabajadores)
+            if (t.getMatricula().equals(matricula)) return t;
+        return null;
+    }
+    // ... versiones de la interfaz remota que arman/serializan a String
+}</code></pre>
+
+<p><strong>Explicaci&oacute;n:</strong></p>
+<ul>
+  <li><code>@Singleton</code>: el contenedor crea <strong>una &uacute;nica instancia</strong> compartida
+      por toda la aplicaci&oacute;n. Es ideal como &ldquo;almac&eacute;n&rdquo; en memoria: todas las
+      capas (web, JSF, consola) ven la misma lista.</li>
+  <li>Por defecto un Singleton tiene <strong>concurrencia gestionada por el contenedor</strong> con
+      bloqueo de escritura, as&iacute; que los accesos concurrentes quedan serializados sin c&oacute;digo extra.</li>
+  <li>Implementa <strong>las dos interfaces</strong> (<code>@Local</code> y <code>@Remote</code>),
+      como pide la letra.</li>
+</ul>
+
+<h2>2.3 Capa de Negocio &mdash; Stateless Session Bean</h2>
+<p class="files">ejb/src/main/java/tse2026/ej1/negocio/TrabajadorSaludService.java (+ <code>...ServiceLocal</code>, y <code>...ServiceRemote</code> en <code>ej1-api</code>)</p>
+
+<h4>Implementaci&oacute;n (parte local)</h4>
+<pre><code>@Stateless
+public class TrabajadorSaludService
+        implements TrabajadorSaludServiceLocal, TrabajadorSaludServiceRemote {
+
+    @EJB
+    private TrabajadorSaludDAOLocal dao;   // inyecci&oacute;n del Singleton por interfaz local
+
+    @Override
+    public void agregar(TrabajadorSalud trabajador) {
+        // ===== REGLA DE NEGOCIO =====
+        TrabajadorSalud existente = dao.buscarPorMatricula(trabajador.getMatricula());
+        if (existente != null) {
+            throw new ReglaNegocioException(
+                "Ya existe un trabajador con la matr&iacute;cula " + trabajador.getMatricula());
+        }
+        dao.agregar(trabajador);
+    }
+
+    @Override public List&lt;TrabajadorSalud&gt; obtenerTodos() { return dao.obtenerTodos(); }
+    @Override public TrabajadorSalud buscarPorMatricula(String m) { return dao.buscarPorMatricula(m); }
+}</code></pre>
+
+<h4>La regla de negocio y <code>ReglaNegocioException</code></h4>
+<p class="files">ejb/src/main/java/tse2026/ej1/negocio/ReglaNegocioException.java</p>
+<pre><code>@ApplicationException(rollback = true)
+public class ReglaNegocioException extends RuntimeException {
+    public ReglaNegocioException(String mensaje) { super(mensaje); }
+}</code></pre>
+
+<p><strong>Por qu&eacute; una excepci&oacute;n propia con <code>@ApplicationException</code>:</strong>
+cuando un <code>@Stateless</code> lanza una <code>RuntimeException</code> com&uacute;n, el contenedor la
+<strong>envuelve en <code>EJBException</code></strong> y hace rollback. La capa web entonces no puede
+distinguir &ldquo;matr&iacute;cula repetida&rdquo; de un error real, y responde HTTP 500.
+Al anotar la excepci&oacute;n con <code>@ApplicationException</code>, el contenedor <strong>la deja
+pasar tal cual</strong> hasta la presentaci&oacute;n, que la captura y muestra un mensaje claro
+(HTTP 400 en el Servlet, <code>FacesMessage</code> en JSF).</p>
+
+<h4>Explicaci&oacute;n de <code>@Stateless</code></h4>
+<ul>
+  <li>El contenedor mantiene un <strong>pool</strong> de instancias sin estado; cada llamada puede
+      atenderla una instancia distinta. Perfecto para l&oacute;gica de negocio: escala bien y es simple.</li>
+  <li>Provee <strong>interfaz local</strong> (usada por la capa web, misma JVM &rarr; r&aacute;pida) y
+      <strong>interfaz remota</strong> (usada por la consola v&iacute;a red).</li>
+  <li>Transacci&oacute;n autom&aacute;tica: cada m&eacute;todo corre en su propia transacci&oacute;n
+      contenedora (CMT).</li>
+</ul>
+
+<h4>Interfaz remota (m&oacute;dulo <code>ej1-api</code>)</h4>
+<pre><code>@Remote
+public interface TrabajadorSaludServiceRemote {
+    String agregar(Long id, String nombre, String apellido, String especialidad,
+                   String matricula, String fechaIngreso, Boolean activo);
+    String listar();
+    String buscarRemotoPorMatricula(String matricula);
+}</code></pre>
+<p>Vive en su <strong>propio m&oacute;dulo <code>ej1-api</code></strong> para que la aplicaci&oacute;n de
+consola dependa solo de este contrato liviano y no del jar completo de EJBs. El <code>ejb</code>
+depende de <code>ej1-api</code> con <em>scope compile</em>, de modo que <code>ej1-api.jar</code>
+viaja dentro del EAR (carpeta <code>lib/</code>) y queda en el classpath del servidor.</p>
+
+<h2>2.4 Capa de Presentaci&oacute;n Web &mdash; Servlet + JSP</h2>
+<p class="files">web/src/main/java/tse2026/ej1/web/TrabajadorSaludServlet.java &bull; web/src/main/webapp/WEB-INF/trabajadores.jsp</p>
+
+<pre><code>@WebServlet("/trabajadores")
+public class TrabajadorSaludServlet extends HttpServlet {
+
+    @EJB
+    private TrabajadorSaludServiceLocal service;   // inyecci&oacute;n de la capa de negocio (local)
+
+    protected void doGet(...)  { /* accion = listar | buscar */ }
+    protected void doPost(...) { /* accion = agregar */ }
+
+    private void agregar(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            TrabajadorSalud t = new TrabajadorSalud(
+                Long.parseLong(req.getParameter("id")),
+                req.getParameter("nombre"), req.getParameter("apellido"),
+                req.getParameter("especialidad"), req.getParameter("matricula"),
+                LocalDate.parse(req.getParameter("fechaIngreso")),
+                Boolean.parseBoolean(req.getParameter("activo")));
+            service.agregar(t);
+            resp.sendRedirect(req.getContextPath() + "/trabajadores?accion=listar");
+        } catch (ReglaNegocioException | IllegalArgumentException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    private void listar(...)  { req.setAttribute("trabajadores", service.obtenerTodos());
+                                req.getRequestDispatcher("/WEB-INF/trabajadores.jsp").forward(req, resp); }
+    private void buscar(...)  { /* service.buscarPorMatricula(...) &rarr; JSP */ }
+}</code></pre>
+
+<p><strong>Explicaci&oacute;n:</strong></p>
+<ul>
+  <li>Patr&oacute;n <strong>MVC cl&aacute;sico</strong>: el Servlet es el controlador, el JSP la vista,
+      el EJB el modelo/negocio.</li>
+  <li><code>@EJB TrabajadorSaludServiceLocal</code>: el servlet usa la <strong>interfaz local</strong>
+      porque corren en la misma JVM (dentro del EAR).</li>
+  <li>El <code>catch</code> combina <code>ReglaNegocioException</code> (regla de negocio) e
+      <code>IllegalArgumentException</code> (dato de formulario inv&aacute;lido, p. ej. id no num&eacute;rico)
+      y responde <strong>HTTP 400</strong> con el mensaje.</li>
+  <li>Tras el alta hace <code>sendRedirect</code> (patr&oacute;n POST-Redirect-GET) para evitar reenv&iacute;os.</li>
+</ul>
+
+<h2>2.5 Capa de Presentaci&oacute;n &mdash; Aplicaci&oacute;n de consola</h2>
+<p class="files">ej1-console/src/main/java/tse2026/ej1/consola/ConsolaApp.java</p>
+
+<pre><code>Properties env = new Properties();
+env.put(Context.INITIAL_CONTEXT_FACTORY,
+        "org.wildfly.naming.client.WildFlyInitialContextFactory");
+env.put(Context.PROVIDER_URL, "remote+http://localhost:8080");
+env.put(Context.SECURITY_PRINCIPAL, "prueba");     // usuario de aplicaci&oacute;n en WildFly
+env.put(Context.SECURITY_CREDENTIALS, "prueba");
+Context ctx = new InitialContext(env);
+
+// ejb:&lt;app&gt;/&lt;m&oacute;dulo&gt;/&lt;bean&gt;!&lt;interfaz remota&gt;
+String jndi = "ejb:ej1/ej1-ejb/TrabajadorSaludService!" +
+              TrabajadorSaludServiceRemote.class.getName();
+TrabajadorSaludServiceRemote service =
+        (TrabajadorSaludServiceRemote) ctx.lookup(jndi);
+
+// men&uacute; 1) Agregar  2) Listar  3) Buscar por matr&iacute;cula  4) Salir
+</code></pre>
+
+<p><strong>Explicaci&oacute;n:</strong></p>
+<ul>
+  <li>La consola es un proceso Java <strong>fuera</strong> del servidor: obtiene el EJB por
+      <strong>JNDI remoto</strong> con el esquema <code>ejb:</code>.</li>
+  <li><code>WildFlyInitialContextFactory</code> + <code>remote+http://</code> son el mecanismo actual de
+      WildFly para invocaci&oacute;n remota de EJB sobre HTTP.</li>
+  <li>Requiere un <strong>usuario de aplicaci&oacute;n</strong> (<code>prueba/prueba</code>, dado de alta
+      con <code>add-user</code>).</li>
+  <li>En ejecuci&oacute;n se agrega al classpath <code>JBOSS_HOME/bin/client/jboss-client.jar</code>
+      (script <code>ej1-console/ejecutar-consola.bat</code>).</li>
+</ul>
+
+<h2>2.6 Errores detectados y corregidos</h2>
+<p>El esqueleto ten&iacute;a varios problemas que imped&iacute;an compilar o desplegar. Correcciones aplicadas:</p>
+<table>
+  <tr><th>#</th><th>Problema</th><th>Correcci&oacute;n</th></tr>
+  <tr><td>1</td><td><code>TrabajadorSaludServiceRemote</code> estaba <strong>vac&iacute;a</strong> (sin <code>@Remote</code> ni m&eacute;todos) &rarr; no compilaba el m&oacute;dulo <code>ejb</code> ni el reactor.</td><td>Se complet&oacute; con <code>@Remote</code> y los 3 m&eacute;todos.</td></tr>
+  <tr><td>2</td><td><code>ej1-api</code> sin dependencia <code>jakarta.ejb-api</code>; <code>ejb</code> y <code>ej1-console</code> no depend&iacute;an de <code>ej1-api</code>.</td><td>Dependencias agregadas en los 3 <code>pom.xml</code>.</td></tr>
+  <tr><td>3</td><td>La regla de negocio devolv&iacute;a <strong>HTTP 500</strong>: el <code>@Stateless</code> envuelve las <code>RuntimeException</code> en <code>EJBException</code>.</td><td>Nueva <code>ReglaNegocioException</code> con <code>@ApplicationException(rollback=true)</code>.</td></tr>
+  <tr><td>4</td><td><code>ConsolaApp</code> usaba JNDI antiguo (<code>http-remoting://</code>) sin <code>InitialContextFactory</code> &rarr; <code>NoInitialContextException</code>.</td><td><code>WildFlyInitialContextFactory</code> + <code>remote+http://</code> + credenciales.</td></tr>
+  <tr><td>5</td><td>En <code>deployments/</code> de WildFly conviv&iacute;an el EAR y los m&oacute;dulos sueltos (<code>.war</code>, <code>.jar</code>); el WAR suelto fallaba al no resolver el EJB de otro <em>deployment</em>.</td><td>Se despliega <strong>solo el EAR</strong>.</td></tr>
+</table>
+
+<h2>2.7 Prueba unitaria sin contenedor</h2>
+<p class="files">ejb/src/test/java/tse2026/ej1/negocio/TrabajadorSaludServiceTest.java</p>
+<pre><code>class TrabajadorSaludServiceTest {
+    private TrabajadorSaludService service;
+
+    @BeforeEach void setUp() {
+        // el Stateless se instancia con new y se le inyecta a mano el Singleton (POJO)
+        service = new TrabajadorSaludService(new TrabajadorSaludDAO());
+    }
+
+    @Test void reglaDeNegocio_noPermiteMatriculaDuplicada() {
+        service.agregar(nuevo("M-200"));
+        assertThrows(ReglaNegocioException.class, () -&gt; service.agregar(nuevo("M-200")));
+        assertEquals(1, service.obtenerTodos().size());
+    }
+    // + agregarYListar()  + buscar_matriculaInexistenteDevuelveNull()
+}</code></pre>
+<p>Se agreg&oacute; al <code>Service</code> un constructor <em>package-private</em>
+<code>TrabajadorSaludService(TrabajadorSaludDAOLocal)</code> para poder inyectar el DAO en la prueba
+sin levantar WildFly. Resultado: <span class="ok">3 tests, 0 fallos</span> con <code>mvn test</code>.</p>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>3. Ejercicio 1.2 &mdash; Despliegue en WildFly local con Docker</h1>
+
+<p>Se empaqueta el servidor + la aplicaci&oacute;n en una imagen Docker, a partir de la imagen
+oficial de WildFly.</p>
+
+<h3>Dockerfile</h3>
+<p class="files">Dockerfile (ra&iacute;z del proyecto)</p>
+<pre><code>FROM quay.io/wildfly/wildfly:41.0.0.Final-jdk21
+
+# 1) Usuario de aplicaci&oacute;n para que la consola invoque el EJB remoto
+USER root
+RUN /opt/jboss/wildfly/bin/add-user.sh -a -u prueba -p prueba --silent
+
+# 2) Desplegar el EAR (el deployment scanner lo toma al arrancar)
+COPY ear/target/ej1.ear /opt/jboss/wildfly/standalone/deployments/
+
+# 3) Compatibilidad con PaaS tipo OpenShift (UID aleatorio del grupo 0)
+RUN chgrp -R 0 /opt/jboss/wildfly/standalone \
+ &amp;&amp; chmod -R g+rwX /opt/jboss/wildfly/standalone
+
+USER 1000
+EXPOSE 8080 9990
+CMD ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0", "-bmanagement", "0.0.0.0"]</code></pre>
+
+<p><strong>Explicaci&oacute;n l&iacute;nea por l&iacute;nea:</strong></p>
+<ul>
+  <li><code>FROM ...wildfly:41.0.0.Final-jdk21</code>: misma versi&oacute;n que el servidor local.</li>
+  <li><code>add-user.sh -a</code>: crea el usuario de aplicaci&oacute;n <code>prueba</code> dentro de la imagen.</li>
+  <li><code>COPY ear/target/ej1.ear ...deployments/</code>: el EAR generado por <code>mvn install</code>
+      se copia a la carpeta que WildFly escanea; al arrancar lo despliega solo.</li>
+  <li><code>chgrp 0</code> + <code>chmod g+rwX</code>: en OpenShift el contenedor corre con un UID
+      aleatorio que pertenece al grupo <code>0</code>; los archivos deben ser legibles/escribibles por
+      ese grupo. Sirve tanto local como en la nube.</li>
+  <li><code>-b 0.0.0.0</code>: WildFly acepta conexiones desde fuera del contenedor.</li>
+</ul>
+
+<h3><code>.dockerignore</code> y <code>docker-compose.yml</code></h3>
+<pre><code># .dockerignore  &mdash; enviar al daemon solo el EAR
+*
+!ear/target/ej1.ear</code></pre>
+<pre><code># docker-compose.yml
+services:
+  wildfly:
+    build: .
+    image: ej1-wildfly:latest
+    container_name: ej1-wildfly
+    ports:
+      - "8080:8080"
+      - "9990:9990"</code></pre>
+
+<h3>Uso y verificaci&oacute;n</h3>
+<pre><code>mvn clean install          # genera ear/target/ej1.ear
+docker compose up -d --build
+# App:  http://localhost:8080/ej1-web/trabajadores</code></pre>
+
+<table>
+  <tr><th>Prueba (contra el contenedor)</th><th>Resultado</th></tr>
+  <tr><td>Log de arranque</td><td class="ok">Deployed "ej1.ear" &bull; WildFly started in ~4 s</td></tr>
+  <tr><td>Alta v&iacute;a web</td><td class="ok">HTTP 302 &rarr; listado</td></tr>
+  <tr><td>Matr&iacute;cula repetida</td><td class="ok">HTTP 400 + &ldquo;Ya existe un trabajador con la matr&iacute;cula&hellip;&rdquo;</td></tr>
+  <tr><td>Listar / Buscar</td><td class="ok">correcto</td></tr>
+  <tr><td>Consola contra el contenedor</td><td class="ok">agregar / listar / buscar OK (EJB remoto + usuario <code>prueba</code>)</td></tr>
+</table>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>4. Ejercicio 2 &mdash; Despliegue en la Nube (PaaS)</h1>
+
+<p><strong>PaaS</strong> (Plataforma como Servicio): el proveedor gestiona sistema operativo,
+runtime y escalado; nosotros solo entregamos la aplicaci&oacute;n (aqu&iacute;, una imagen Docker).
+Se us&oacute; <strong>Red Hat OpenShift</strong> (Developer Sandbox, gratuito).</p>
+
+<h3>Estrategia: build binario dentro del cluster</h3>
+<p>No hace falta registro de im&aacute;genes externo ni Docker local: se sube el contexto
+(<code>Dockerfile</code> + <code>ej1.ear</code>) y <strong>OpenShift construye la imagen</strong> con
+<em>buildah</em> y la publica en su registro interno.</p>
+
+<pre><code># 1) Autenticaci&oacute;n (token del Sandbox)
+oc login --token=sha256~... --server=https://api.rm2.thpm.p1.openshiftapps.com:6443
+
+# 2) Definir un build de estrategia docker con entrada binaria
+oc new-build --name ej1 --strategy docker --binary
+
+# 3) Subir el contexto y construir en el cluster
+oc start-build ej1 --from-dir . --follow
+
+# 4) Crear Deployment + Service desde la imagen construida
+oc new-app ej1
+oc set resources deploy/ej1 --requests=memory=768Mi --limits=memory=1200Mi
+
+# 5) Publicar una URL HTTPS p&uacute;blica (Route con TLS edge)
+oc expose svc/ej1
+oc patch route/ej1 -p '{"spec":{"tls":{"termination":"edge"}}}'</code></pre>
+
+<p><strong>Objetos de OpenShift/Kubernetes involucrados:</strong></p>
+<ul>
+  <li><strong>BuildConfig</strong> + <strong>ImageStream</strong>: reciben el contexto y producen/versionan la imagen.</li>
+  <li><strong>Deployment</strong>: mantiene el pod con WildFly corriendo (lo reinicia si cae).</li>
+  <li><strong>Service</strong>: nombre y IP estable interna hacia el pod (puerto 8080).</li>
+  <li><strong>Route</strong>: expone el Service en una URL p&uacute;blica con HTTPS.</li>
+</ul>
+
+<h3>Resultado</h3>
+<p>URL p&uacute;blica:
+<code>https://ej1-juanpipitecnoinfo-dev.apps.rm2.thpm.p1.openshiftapps.com/ej1-web/trabajadores</code></p>
+<table>
+  <tr><th>Prueba (contra la URL de la nube)</th><th>Resultado</th></tr>
+  <tr><td>Pod</td><td class="ok">Running 1/1 &bull; &ldquo;Deployed ej1.ear&rdquo; sin errores</td></tr>
+  <tr><td>Alta</td><td class="ok">HTTP 302</td></tr>
+  <tr><td>Regla de negocio (matr&iacute;cula repetida)</td><td class="ok">HTTP 400 + mensaje</td></tr>
+  <tr><td>Listar / Buscar por matr&iacute;cula</td><td class="ok">correcto</td></tr>
+</table>
+<div class="note">Es la <strong>misma imagen</strong> Docker del Ejercicio 1.2 la que corre en la nube:
+el flujo Docker &rarr; PaaS queda completo. Re-desplegar tras cambios:
+<code>mvn install &amp;&amp; oc start-build ej1 --from-dir . --follow</code>.</div>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>5. Ejercicio 4 &mdash; Capa de presentaci&oacute;n con JSF y AJAX</h1>
+
+<p>Se moderniza la capa web con <strong>Jakarta Faces (JSF)</strong> &mdash; implementaci&oacute;n
+Mojarra 4.1 sobre WildFly &mdash; conviviendo con la versi&oacute;n Servlet/JSP. Todas las llamadas al
+servidor son por <strong>AJAX</strong> (etiqueta <code>&lt;f:ajax&gt;</code>), sin recargar la p&aacute;gina.</p>
+
+<h2>5.1 Backing bean</h2>
+<p class="files">web/src/main/java/tse2026/ej1/web/jsf/TrabajadorSaludBean.java</p>
+<pre><code>@Named
+@RequestScoped
+public class TrabajadorSaludBean {
+
+    @EJB
+    private TrabajadorSaludServiceLocal service;   // la MISMA capa de negocio del Ej. 1
+
+    // modelo del formulario de alta
+    private Long id; private String nombre, apellido, especialidad, matricula;
+    private LocalDate fechaIngreso; private boolean activo = true;
+    // b&uacute;squeda
+    private String matriculaBuscar;
+    // resultado mostrado en la tabla
+    private List&lt;TrabajadorSalud&gt; trabajadores;
+
+    @PostConstruct
+    public void init() { trabajadores = service.obtenerTodos(); }
+
+    public void agregar() {
+        FacesContext ctx = FacesContext.getCurrentInstance();
+        try {
+            service.agregar(new TrabajadorSalud(id, nombre, apellido,
+                    especialidad, matricula, fechaIngreso, activo));
+            ctx.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO,
+                    "Trabajador agregado", "Matricula " + matricula));
+            limpiarFormulario();
+        } catch (ReglaNegocioException e) {
+            ctx.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR,
+                    "No se pudo agregar", e.getMessage()));
+        }
+        trabajadores = service.obtenerTodos();
+    }
+
+    public void buscar() {
+        if (matriculaBuscar == null || matriculaBuscar.isBlank()) {
+            trabajadores = service.obtenerTodos(); return;
+        }
+        TrabajadorSalud t = service.buscarPorMatricula(matriculaBuscar.trim());
+        trabajadores = (t == null) ? List.of() : List.of(t);
+    }
+
+    public void listarTodos() { matriculaBuscar = null; trabajadores = service.obtenerTodos(); }
+    // getters / setters
+}</code></pre>
+
+<p><strong>Explicaci&oacute;n:</strong></p>
+<ul>
+  <li><code>@Named</code>: expone el bean a las p&aacute;ginas con el nombre EL
+      <code>#{trabajadorSaludBean}</code>.</li>
+  <li><code>@RequestScoped</code>: el estado real vive en el <strong>Singleton</strong> de la capa de
+      datos, no en el bean. El bean solo coordina cada petici&oacute;n; en cada llamada AJAX se recrea,
+      <code>@PostConstruct</code> recarga la lista y el m&eacute;todo de acci&oacute;n la ajusta.
+      As&iacute; se evita cualquier problema de serializaci&oacute;n/pasivaci&oacute;n.</li>
+  <li><code>@EJB TrabajadorSaludServiceLocal</code>: <strong>reutiliza sin cambios</strong> la capa de
+      negocio del Ejercicio 1 (misma regla de negocio, misma validaci&oacute;n).</li>
+  <li>La <code>ReglaNegocioException</code> se traduce a un <code>FacesMessage</code> de error visible
+      en pantalla.</li>
+</ul>
+
+<h2>5.2 P&aacute;gina Facelets</h2>
+<p class="files">web/src/main/webapp/trabajadores.xhtml</p>
+<pre><code>&lt;h:messages id="msgs" showDetail="true" infoClass="ok" errorClass="err" /&gt;
+
+&lt;!-- ALTA --&gt;
+&lt;h:form id="formAlta"&gt;
+  &lt;h:inputText id="id"     value="#{trabajadorSaludBean.id}"        required="true" /&gt;
+  &lt;h:inputText id="nombre" value="#{trabajadorSaludBean.nombre}"    required="true" /&gt;
+  ... apellido, especialidad, matricula ...
+  &lt;h:inputText id="fecha" a:type="date" value="#{trabajadorSaludBean.fechaIngreso}"&gt;
+      &lt;f:convertDateTime type="localDate" pattern="yyyy-MM-dd" /&gt;
+  &lt;/h:inputText&gt;
+  &lt;h:selectBooleanCheckbox id="activo" value="#{trabajadorSaludBean.activo}" /&gt;
+
+  &lt;h:commandButton value="Agregar trabajador" action="#{trabajadorSaludBean.agregar}"&gt;
+      &lt;f:ajax execute="@form" render="@form :msgs :resultado" /&gt;
+  &lt;/h:commandButton&gt;
+&lt;/h:form&gt;
+
+&lt;!-- BUSQUEDA (bot&oacute;n + b&uacute;squeda en vivo) --&gt;
+&lt;h:form id="formBuscar"&gt;
+  &lt;h:inputText id="q" value="#{trabajadorSaludBean.matriculaBuscar}"&gt;
+      &lt;f:ajax event="keyup" delay="300"
+              listener="#{trabajadorSaludBean.buscar}" render=":resultado" /&gt;
+  &lt;/h:inputText&gt;
+  &lt;h:commandButton value="Buscar"        action="#{trabajadorSaludBean.buscar}"&gt;
+      &lt;f:ajax execute="@form" render=":resultado" /&gt;&lt;/h:commandButton&gt;
+  &lt;h:commandButton value="Mostrar todos" action="#{trabajadorSaludBean.listarTodos}"&gt;
+      &lt;f:ajax execute="@form" render="@form :resultado" /&gt;&lt;/h:commandButton&gt;
+&lt;/h:form&gt;
+
+&lt;!-- LISTADO --&gt;
+&lt;h:panelGroup id="resultado" layout="block"&gt;
+  &lt;h:dataTable value="#{trabajadorSaludBean.trabajadores}" var="t"
+               rendered="#{not empty trabajadorSaludBean.trabajadores}"&gt;
+      &lt;h:column&gt;&lt;f:facet name="header"&gt;Matricula&lt;/f:facet&gt;#{t.matricula}&lt;/h:column&gt;
+      ... resto de columnas ...
+      &lt;h:column&gt;&lt;f:facet name="header"&gt;Activo&lt;/f:facet&gt;
+          &lt;h:outputText value="Si" rendered="#{t.activo}" /&gt;
+          &lt;h:outputText value="No" rendered="#{not t.activo}" /&gt;
+      &lt;/h:column&gt;
+  &lt;/h:dataTable&gt;
+  &lt;h:outputText value="No hay trabajadores para mostrar."
+                rendered="#{empty trabajadorSaludBean.trabajadores}" /&gt;
+&lt;/h:panelGroup&gt;</code></pre>
+
+<p><strong>C&oacute;mo funciona el AJAX (criterios de usabilidad):</strong></p>
+<ul>
+  <li><code>&lt;f:ajax execute="@form"&gt;</code>: al pulsar el bot&oacute;n se env&iacute;an por AJAX
+      solo los campos del formulario.</li>
+  <li><code>render="@form :msgs :resultado"</code>: el servidor devuelve <strong>solo esos fragmentos</strong>
+      de HTML y JSF los reemplaza en la p&aacute;gina &mdash; sin recarga completa.</li>
+  <li><code>event="keyup" delay="300"</code>: b&uacute;squeda <strong>en vivo</strong> mientras se
+      escribe, con 300 ms de espera para no saturar el servidor.</li>
+  <li><code>required="true"</code> + <code>&lt;h:messages&gt;</code>: validaci&oacute;n del lado servidor
+      con mensajes inmediatos.</li>
+  <li><code>&lt;f:convertDateTime type="localDate"&gt;</code>: convierte el texto <code>yyyy-MM-dd</code>
+      del input HTML5 <code>type="date"</code> a <code>LocalDate</code>.</li>
+</ul>
+
+<h2>5.3 Configuraci&oacute;n</h2>
+<p class="files">web/src/main/webapp/WEB-INF/web.xml &bull; WEB-INF/faces-config.xml (ya exist&iacute;a) &bull; WEB-INF/beans.xml (ya exist&iacute;a)</p>
+<pre><code>&lt;context-param&gt;
+    &lt;param-name&gt;jakarta.faces.PROJECT_STAGE&lt;/param-name&gt;
+    &lt;param-value&gt;Development&lt;/param-value&gt;   &lt;!-- mejores mensajes de error --&gt;
+&lt;/context-param&gt;
+&lt;welcome-file-list&gt;
+    &lt;welcome-file&gt;trabajadores.xhtml&lt;/welcome-file&gt;
+&lt;/welcome-file-list&gt;</code></pre>
+<p>La <code>FacesServlet</code> se activa autom&aacute;ticamente por la presencia de
+<code>faces-config.xml</code> y queda mapeada a <code>*.xhtml</code>. <code>beans.xml</code> habilita CDI.</p>
+
+<h2>5.4 Verificaci&oacute;n</h2>
+<table>
+  <tr><th>Acci&oacute;n</th><th>Resultado (sin recarga de p&aacute;gina)</th></tr>
+  <tr><td>Alta AJAX</td><td class="ok">mensaje &ldquo;Trabajador agregado&rdquo;, fila nueva en la tabla, formulario limpio</td></tr>
+  <tr><td>Alta con matr&iacute;cula repetida</td><td class="ok">&ldquo;Ya existe un trabajador con la matr&iacute;cula&hellip;&rdquo;, tabla intacta, campos conservados</td></tr>
+  <tr><td>Buscar (bot&oacute;n)</td><td class="ok">la tabla se filtra</td></tr>
+  <tr><td>B&uacute;squeda en vivo (keyup)</td><td class="ok">filtra mientras se escribe</td></tr>
+  <tr><td>Mostrar todos</td><td class="ok">vuelve el listado completo</td></tr>
+</table>
+<p>URL: <code>http://localhost:8080/ej1-web/trabajadores.xhtml</code> (la versi&oacute;n Servlet/JSP
+sigue en <code>/ej1-web/trabajadores</code>).</p>
+
+<!-- ================================================================= -->
+<div class="pb"></div>
+<h1>6. C&oacute;mo ejecutar todo</h1>
+
+<h3>Compilar y probar</h3>
+<pre><code>cd ej1
+mvn clean install          # 7 m&oacute;dulos + 3 tests unitarios &rarr; BUILD SUCCESS</code></pre>
+
+<h3>A) WildFly local (standalone)</h3>
+<pre><code>&amp; "$JBOSS_HOME/bin/standalone.bat"
+"$JBOSS_HOME/bin/jboss-cli.bat" --connect --command="deploy .../ear/target/ej1.ear --force"
+#  Web JSP : http://localhost:8080/ej1-web/trabajadores
+#  Web JSF : http://localhost:8080/ej1-web/trabajadores.xhtml
+#  Consola : ej1-console/ejecutar-consola.bat</code></pre>
+
+<h3>B) WildFly en Docker (Ej. 1.2)</h3>
+<pre><code>docker compose up -d --build
+#  http://localhost:8080/ej1-web/trabajadores.xhtml
+docker compose down        # detener</code></pre>
+
+<h3>C) OpenShift / PaaS (Ej. 2)</h3>
+<pre><code>oc login --token=... --server=...
+bash openshift/desplegar.sh
+#  https://ej1-&lt;usuario&gt;-dev.&lt;cluster&gt;.openshiftapps.com/ej1-web/trabajadores</code></pre>
+
+<div class="note"><strong>Aviso:</strong> el contenedor Docker y el WildFly standalone usan los
+mismos puertos 8080/9990; ejecutar solo uno a la vez.</div>
+
+<h3>Resumen de estado</h3>
+<table>
+  <tr><th>Ejercicio</th><th>Entregable</th><th>Estado</th></tr>
+  <tr><td>1</td><td>App Jakarta EE 3 capas (Singleton + Stateless + Servlet/JSP + consola), regla de negocio</td><td class="ok">Completo y probado</td></tr>
+  <tr><td>1.2</td><td>Imagen Docker de WildFly con el EAR desplegado</td><td class="ok">Completo y probado</td></tr>
+  <tr><td>2</td><td>Misma imagen desplegada en OpenShift (PaaS) con URL p&uacute;blica</td><td class="ok">Completo y probado</td></tr>
+  <tr><td>4</td><td>Capa web con JSF + AJAX (alta, listar, buscar, b&uacute;squeda en vivo)</td><td class="ok">Completo y probado</td></tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+<configuration>
+  <authentication-client xmlns="urn:elytron:client:1.7">
+    <authentication-rules>
+      <rule use-configuration="default"/>
+    </authentication-rules>
+    <authentication-configurations>
+      <configuration name="default">
+        <sasl-mechanism-selector selector="DIGEST-MD5"/>
+        <set-user-name name="prueba"/>
+        <credentials>
+          <clear-password password="prueba"/>
+        </credentials>
+      </configuration>
+    </authentication-configurations>
+  </authentication-client>
+</configuration>

@@ -1,0 +1,20 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>tse2026</groupId>
+    <artifactId>ej1</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+  <artifactId>ej1-api</artifactId>
+
+  <dependencies>
+    <!-- Solo se necesita la anotacion @Remote en tiempo de compilacion.
+         En el servidor la provee WildFly; en el cliente de consola viaja
+         como dependencia transitiva normal. -->
+    <dependency>
+      <groupId>jakarta.ejb</groupId>
+      <artifactId>jakarta.ejb-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+</project>

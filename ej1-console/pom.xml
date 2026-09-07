@@ -1,0 +1,28 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>tse2026</groupId>
+    <artifactId>ej1</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+  <artifactId>ej1-console</artifactId>
+  <packaging>jar</packaging>
+
+  <dependencies>
+    <!-- Solo la interfaz remota: el cliente Java no necesita el jar de EJBs. -->
+    <dependency>
+      <groupId>tse2026</groupId>
+      <artifactId>ej1-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!--
+      Para invocar el EJB remoto se necesita ademas el cliente de WildFly.
+      Se usa el "fat jar" que trae la propia instalacion de WildFly:
+          $JBOSS_HOME/bin/client/jboss-client.jar
+      En Eclipse: Build Path > Add External JARs > jboss-client.jar
+      En linea de comandos lo agrega el script ej1-console/ejecutar-consola.bat
+    -->
+  </dependencies>
+
+</project>

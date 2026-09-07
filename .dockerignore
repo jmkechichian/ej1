@@ -1,0 +1,3 @@
+# Mandar al daemon de Docker solo el EAR, nada mas (build context minimo).
+*
+!ear/target/ej1.ear
